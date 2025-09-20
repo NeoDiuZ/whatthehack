@@ -45,6 +45,10 @@ interface Translations {
     bluetoothNotSupported: string;
     connectionFailed: string;
     language: string;
+    connectAccessories: string;
+    accessoriesConnected: string;
+    connectingAccessories: string;
+    noLightsDeviceConnected: string;
   };
   ms: {
     appTitle: string;
@@ -75,6 +79,10 @@ interface Translations {
     bluetoothNotSupported: string;
     connectionFailed: string;
     language: string;
+    connectAccessories: string;
+    accessoriesConnected: string;
+    connectingAccessories: string;
+    noLightsDeviceConnected: string;
   };
   ta: {
     appTitle: string;
@@ -105,6 +113,10 @@ interface Translations {
     bluetoothNotSupported: string;
     connectionFailed: string;
     language: string;
+    connectAccessories: string;
+    accessoriesConnected: string;
+    connectingAccessories: string;
+    noLightsDeviceConnected: string;
   };
   zh: {
     appTitle: string;
@@ -135,6 +147,10 @@ interface Translations {
     bluetoothNotSupported: string;
     connectionFailed: string;
     language: string;
+    connectAccessories: string;
+    accessoriesConnected: string;
+    connectingAccessories: string;
+    noLightsDeviceConnected: string;
   };
 }
 
@@ -168,7 +184,11 @@ const translations: Translations = {
     enterLabel: "Please enter a label for the card",
     bluetoothNotSupported: "Web Bluetooth not supported",
     connectionFailed: "Connection failed",
-    language: "Language"
+    language: "Language",
+    connectAccessories: "Connect Accessories",
+    accessoriesConnected: "Accessories Connected",
+    connectingAccessories: "Connecting Accessories...",
+    noLightsDeviceConnected: "No light device connected"
   },
   ms: {
     appTitle: "Neural Drive",
@@ -198,7 +218,11 @@ const translations: Translations = {
     enterLabel: "Sila masukkan label untuk kad",
     bluetoothNotSupported: "Web Bluetooth tidak disokong",
     connectionFailed: "Sambungan gagal",
-    language: "Bahasa"
+    language: "Bahasa",
+    connectAccessories: "Sambung Aksesori",
+    accessoriesConnected: "Aksesori Disambung",
+    connectingAccessories: "Menyambung Aksesori...",
+    noLightsDeviceConnected: "Tiada peranti lampu disambung"
   },
   ta: {
     appTitle: "Neural Drive",
@@ -228,7 +252,11 @@ const translations: Translations = {
     enterLabel: "அட்டைக்கு ஒரு லேபிள் உள்ளிடவும்",
     bluetoothNotSupported: "வெப் புளூடூத் ஆதரிக்கப்படவில்லை",
     connectionFailed: "இணைப்பு தோல்வி",
-    language: "மொழி"
+    language: "மொழி",
+    connectAccessories: "இணைப்புகளை இணைக்க",
+    accessoriesConnected: "இணைப்புகள் இணைக்கப்பட்டன",
+    connectingAccessories: "இணைப்புகளை இணைக்கிறது...",
+    noLightsDeviceConnected: "விளக்கு சாதனம் இணைக்கப்படவில்லை"
   },
   zh: {
     appTitle: "神经驱动",
@@ -258,7 +286,11 @@ const translations: Translations = {
     enterLabel: "请为卡片输入标签",
     bluetoothNotSupported: "不支持Web蓝牙",
     connectionFailed: "连接失败",
-    language: "语言"
+    language: "语言",
+    connectAccessories: "连接配件",
+    accessoriesConnected: "配件已连接",
+    connectingAccessories: "正在连接配件...",
+    noLightsDeviceConnected: "未连接灯光设备"
   }
 };
 
@@ -332,7 +364,7 @@ const CommunicationInterface: React.FC = () => {
   const [showAddCard, setShowAddCard] = useState(false);
   const connectedDeviceRef = useRef<BluetoothDevice | null>(null);
   const [pendingActionOptionId, setPendingActionOptionId] = useState<string | null>(null);
-  const handleNotificationsRef = useRef<(event: Event) => void>();
+  const handleNotificationsRef = useRef<((event: Event) => void) | undefined>(undefined);
   // YouTube state
   const [showYouTubeView, setShowYouTubeView] = useState(false);
   const [ytVideos, setYtVideos] = useState<Array<{ id: string; title: string; thumb: string }>>([]);
@@ -353,9 +385,28 @@ const CommunicationInterface: React.FC = () => {
   const lightsCharacteristicRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const [isLightsConnected, setIsLightsConnected] = useState(false);
   const [areLightsOn, setAreLightsOn] = useState(false);
+  const [isConnectingAccessories, setIsConnectingAccessories] = useState(false);
+  const [showLightsMessage, setShowLightsMessage] = useState(false);
 
   // Get current translations
   const t = translations[currentLanguage];
+
+  // Function to format YouTube video titles
+  const formatVideoTitle = (title: string) => {
+    // Remove common prefixes and suffixes that make titles too long
+    let formatted = title
+      .replace(/^(Music Therapy|Relaxing Music|Relaxing Therapy Music|Relaxing Sleeping Music|Soothing Meditation Music|Stress Relieving|Calming Music|Peaceful Relaxing Music|Stress Relieving & Calming Music)\s*[-|:]\s*/i, '')
+      .replace(/\s*[-|:]\s*(for Therapy|for Dementia|for Alzheimer's|for Memory Loss|for Parkinson's|for Stress Relief|for Anxiety|for Health|and Immune System|Patients|Psychotherapy|Disease|4K|UltraHD|Video|Music|Film)\s*$/i, '')
+      .replace(/\s*[-|:]\s*(4k Video UltraHD|4K Video|UltraHD|4K|Video|Music|Film)\s*$/i, '')
+      .trim();
+
+    // If still too long, truncate and add ellipsis
+    if (formatted.length > 60) {
+      formatted = formatted.substring(0, 57) + '...';
+    }
+
+    return formatted;
+  };
 
   // Default options - now with multilingual support
   const getDefaultOptions = useCallback((): Option[] => [
@@ -548,7 +599,6 @@ const CommunicationInterface: React.FC = () => {
             console.log(`🎬 VIDEO MODAL: Selection changed from ${prev} to ${next}`);
             return next;
           });
-          playSound('select.mp3');
           return;
         }
         if (data.length === 2 && data[0] === 'A'.charCodeAt(0)) {
@@ -577,7 +627,6 @@ const CommunicationInterface: React.FC = () => {
           console.log(`📺 YOUTUBE LIST: 'S' received, index=${newIndex}, total=${total}`);
           if (newIndex > 0 && newIndex <= total) {
             setSelectedYtIndex(newIndex);
-            playSound('select.mp3');
             console.log(`📺 YOUTUBE LIST: Selected index ${newIndex}`);
           } else {
             console.log(`📺 YOUTUBE LIST: Index ${newIndex} out of range (1-${total})`);
@@ -659,7 +708,7 @@ const CommunicationInterface: React.FC = () => {
       }
     }
     console.log(`🏠 MAIN MENU: Unhandled packet`);
-  }, [options, playSound, showYouTubeView, ytVideos, ytModal.open, selectedYtModalIndex, ytModal]); // Add all state dependencies
+  }, [options, playSound, showYouTubeView, ytVideos, selectedYtModalIndex, ytModal.open]); // Add all state dependencies
 
   // Update the ref whenever the callback changes
   useEffect(() => {
@@ -723,7 +772,7 @@ const CommunicationInterface: React.FC = () => {
       setConnectionError(error instanceof Error ? error.message : t.connectionFailed);
       return false;
     }
-  }, [handleNotifications, handleDisconnection, t]);
+  }, [handleDisconnection, t]);
 
   // Lights connect/disconnect and write helpers
   const handleLightsDisconnection = useCallback(() => {
@@ -780,15 +829,31 @@ const CommunicationInterface: React.FC = () => {
     }
   }, []);
 
+  const connectAccessories = useCallback(async () => {
+    setIsConnectingAccessories(true);
+    try {
+      const success = await connectToLightsDevice();
+      if (success) {
+        console.log('Accessories connected successfully');
+      }
+    } catch (error) {
+      console.error('Failed to connect accessories:', error);
+    } finally {
+      setIsConnectingAccessories(false);
+    }
+  }, [connectToLightsDevice]);
+
   const toggleLights = useCallback(async () => {
     if (!isLightsConnected) {
-      const ok = await connectToLightsDevice();
-      if (!ok) return;
+      // Show message instead of trying to connect
+      setShowLightsMessage(true);
+      setTimeout(() => setShowLightsMessage(false), 3000);
+      return;
     }
     const nextOn = !areLightsOn;
     const ok = await writeLightsByte(nextOn ? 0x01 : 0x00);
     if (ok) setAreLightsOn(nextOn);
-  }, [areLightsOn, isLightsConnected, connectToLightsDevice, writeLightsByte]);
+  }, [areLightsOn, isLightsConnected, writeLightsByte]);
 
   // YouTube helpers
   const openYouTubeView = useCallback(async () => {
@@ -1074,27 +1139,50 @@ const CommunicationInterface: React.FC = () => {
                 )}
               </div>
 
-              {/* Connect Button */}
-              <button
-                onClick={toggleConnection}
-                disabled={isConnecting}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  isConnected
-                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                } ${isConnecting ? 'opacity-75' : ''}`}
-              >
-                {isConnecting ? (
-                  <span className="flex items-center">
-                    <span className="animate-spin mr-2">↻</span>
-                    {t.connecting}
-                  </span>
-                ) : isConnected ? (
-                  t.disconnect
-                ) : (
-                  t.connect
-                )}
-              </button>
+              {/* Connect Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={toggleConnection}
+                  disabled={isConnecting}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    isConnected
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  } ${isConnecting ? 'opacity-75' : ''}`}
+                >
+                  {isConnecting ? (
+                    <span className="flex items-center">
+                      <span className="animate-spin mr-2">↻</span>
+                      {t.connecting}
+                    </span>
+                  ) : isConnected ? (
+                    t.disconnect
+                  ) : (
+                    t.connect
+                  )}
+                </button>
+
+                <button
+                  onClick={connectAccessories}
+                  disabled={isConnectingAccessories}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    isLightsConnected
+                      ? 'bg-green-500 hover:bg-green-600 text-white'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  } ${isConnectingAccessories ? 'opacity-75' : ''}`}
+                >
+                  {isConnectingAccessories ? (
+                    <span className="flex items-center">
+                      <span className="animate-spin mr-2">↻</span>
+                      {t.connectingAccessories}
+                    </span>
+                  ) : isLightsConnected ? (
+                    t.accessoriesConnected
+                  ) : (
+                    t.connectAccessories
+                  )}
+                </button>
+              </div>
 
               {/* Theme Toggle */}
               <button
@@ -1135,6 +1223,18 @@ const CommunicationInterface: React.FC = () => {
           </div>
         )}
 
+        {showLightsMessage && (
+          <div className="mb-6 text-center">
+            <div className={`inline-block px-4 py-2 rounded-lg text-sm ${
+              isDarkMode 
+                ? 'bg-orange-950 border border-orange-700 text-orange-300' 
+                : 'bg-orange-50 border border-orange-200 text-orange-700'
+            }`}>
+              {t.noLightsDeviceConnected}
+            </div>
+          </div>
+        )}
+
         {/* Add Card Button */}
         <div className="flex justify-center mb-6">
           <button
@@ -1153,9 +1253,11 @@ const CommunicationInterface: React.FC = () => {
         {/* Communication Options Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
           {options.map((option, index) => {
-            const isSelected = selectedOption === option.id;
             const isCurrentMenuOption = menuActive && !showYouTubeView && !ytModal.open && currentMenuIndex === index + 1;
             const isCustomCard = option.id.startsWith('custom-');
+            // Purple for S mode iteration, green for A mode activation
+            const isIterating = isCurrentMenuOption && !activeSelection;
+            const isActivated = activeSelection === option.id;
 
             return (
               <div
@@ -1164,10 +1266,9 @@ const CommunicationInterface: React.FC = () => {
                   relative group cursor-pointer transition-all duration-300 transform
                   ${isDarkMode ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-200'}
                   hover:scale-105 hover:shadow-lg rounded-xl p-6 border-2
-                  ${isSelected ? 'border-green-400 bg-green-50' : ''}
-                  ${isCurrentMenuOption ? 'ring-4 ring-purple-400/50' : ''}
+                  ${isIterating ? 'ring-4 ring-purple-400/50' : ''}
+                  ${isActivated ? 'border-green-400 bg-green-50 scale-105' : ''}
                   ${!isConnected && option.id !== 'lights' && option.id !== 'youtube' ? 'opacity-50 cursor-not-allowed' : ''}
-                  ${activeSelection === option.id ? '!bg-green-500/30 border-green-400 scale-105' : ''}
                 `}
               >
                 {/* Remove button for custom cards */}
@@ -1187,30 +1288,24 @@ const CommunicationInterface: React.FC = () => {
                   <div className={`
                     p-4 rounded-lg transition-all duration-300 group-hover:scale-110
                     ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}
-                    ${isSelected ? 'bg-green-100' : ''}
-                    ${isCurrentMenuOption ? 'bg-purple-100' : ''}
+                    ${isIterating ? 'bg-purple-100' : ''}
+                    ${isActivated ? 'bg-green-100' : ''}
                   `}>
                     <div className={`transition-all duration-300 ${
                       isDarkMode ? 'text-white' : 'text-gray-700'
-                    } ${isSelected ? 'text-green-600' : ''} ${isCurrentMenuOption ? 'text-purple-600' : ''}`}>
+                    } ${isIterating ? 'text-purple-600' : ''} ${isActivated ? 'text-green-600' : ''}`}>
                       {option.icon}
                     </div>
                   </div>
 
                   <h3 className={`text-lg font-semibold text-center transition-all duration-300 ${
                     isDarkMode ? 'text-white' : 'text-gray-900'
-                  } ${isSelected ? 'text-green-600' : ''} ${isCurrentMenuOption ? 'text-purple-600' : ''}`}>
+                  } ${isIterating ? 'text-purple-600' : ''} ${isActivated ? 'text-green-600' : ''}`}>
                     {option.label}
                   </h3>
 
-                  {isSelected && (
+                  {(isIterating || isActivated) && (
                     <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center animate-pulse">
-                      <div className="w-3 h-3 bg-white rounded-full"></div>
-                    </div>
-                  )}
-
-                  {isCurrentMenuOption && !isSelected && (
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-400 rounded-full flex items-center justify-center animate-pulse">
                       <div className="w-3 h-3 bg-white rounded-full"></div>
                     </div>
                   )}
@@ -1247,28 +1342,53 @@ const CommunicationInterface: React.FC = () => {
                   {ytVideos.map((v, idx) => {
                     const isSelected = selectedYtIndex === idx + 1;
                     const isActive = activeYtIndex === idx + 1;
+                    // Purple for S mode iteration, green for A mode activation
+                    const isIterating = isSelected && !isActive;
+                    const isActivated = isActive;
                     return (
                       <button
                         key={v.id}
                         onClick={() => openYTModal(v.id, v.title)}
-                        className={`text-left rounded-lg overflow-hidden border transition-colors relative ${
+                        className={`text-left rounded-lg border transition-all duration-300 transform relative p-1 ${
                           isDarkMode ? 'border-slate-700 hover:border-slate-500' : 'border-gray-200 hover:border-gray-300'
-                        } ${isSelected ? 'ring-4 ring-purple-400/50' : ''} ${isActive ? '!ring-4 ring-green-400/60' : ''}`}
+                        } ${isIterating ? 'ring-4 ring-purple-400/50' : ''} ${isActivated ? 'border-green-400 bg-green-50 scale-105' : ''}`}
                       >
-                        <img src={v.thumb} alt={`Thumbnail: ${v.title}`} className="w-full aspect-video object-cover" />
-                        <div className={`p-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{v.title}</div>
+                        <div className="overflow-hidden rounded-lg">
+                          <img src={v.thumb} alt={`Thumbnail: ${v.title}`} className="w-full aspect-video object-cover" />
+                        </div>
+                        <div className={`p-3 transition-all duration-300 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        } ${isIterating ? 'text-purple-600' : ''} ${isActivated ? 'text-green-600' : ''}`}>
+                          <h4 className="font-medium text-sm leading-tight line-clamp-3">
+                            {formatVideoTitle(v.title)}
+                          </h4>
+                        </div>
+                        {(isIterating || isActivated) && (
+                          <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center animate-pulse z-10">
+                            <div className="w-3 h-3 bg-white rounded-full"></div>
+                          </div>
+                        )}
                       </button>
                     );
                   })}
                   {/* Close tile as the last selectable item */}
                   <button
                     onClick={() => setShowYouTubeView(false)}
-                    className={`flex items-center justify-center rounded-lg border-2 p-6 font-semibold transition-colors ${
+                    className={`flex items-center justify-center rounded-lg border-2 p-6 font-semibold transition-all duration-300 transform relative ${
                       isDarkMode ? 'border-slate-700 hover:border-slate-500 text-white' : 'border-gray-200 hover:border-gray-300 text-gray-900'
                     } ${selectedYtIndex === ytVideos.length + 1 ? 'ring-4 ring-purple-400/50' : ''}`}
                     aria-label="Close YouTube"
                   >
-                    Close
+                    <span className={`transition-all duration-300 ${
+                      selectedYtIndex === ytVideos.length + 1 ? 'text-purple-600' : ''
+                    }`}>
+                      Close
+                    </span>
+                    {selectedYtIndex === ytVideos.length + 1 && (
+                      <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center animate-pulse z-10">
+                        <div className="w-3 h-3 bg-white rounded-full"></div>
+                      </div>
+                    )}
                   </button>
                   {ytVideos.length === 0 && !ytError && (
                     <div className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} py-12 text-center`}>No videos found.</div>
@@ -1280,10 +1400,27 @@ const CommunicationInterface: React.FC = () => {
 
           {/* Modal Player */}
           {ytModal.open && ytModal.id && (
-            <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-              <div className="relative w-full max-w-4xl">
-                <div className="bg-black rounded-xl overflow-hidden">
-                  <div className="aspect-video w-full">
+            <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4">
+              <div className={`relative w-full max-w-5xl ${isDarkMode ? 'bg-slate-900' : 'bg-white'} rounded-2xl shadow-2xl overflow-hidden border-2 ${isDarkMode ? 'border-slate-700' : 'border-gray-200'}`}>
+                {/* Card Header */}
+                <div className={`flex items-center justify-between px-6 py-4 border-b ${isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
+                      <Youtube size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className={`font-bold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>YouTube Player</h3>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Neural Control Active</p>
+                    </div>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${isDarkMode ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700'}`}>
+                    Neural Mode
+                  </div>
+                </div>
+
+                {/* Video Container */}
+                <div className="relative">
+                  <div className="aspect-video w-full bg-black">
                     <iframe
                       title={ytModal.title}
                       width="100%"
@@ -1293,30 +1430,73 @@ const CommunicationInterface: React.FC = () => {
                       src={`https://www.youtube-nocookie.com/embed/${ytModal.id}?rel=0&modestbranding=1&playsinline=1&autoplay=1`}
                     />
                   </div>
+                  {/* Video Overlay Info */}
+                  <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
+                    <div className={`px-3 py-1 rounded-lg backdrop-blur-sm ${isDarkMode ? 'bg-black/50 text-white' : 'bg-white/90 text-gray-900'}`}>
+                      <span className="text-sm font-medium">Now Playing</span>
+                    </div>
+                    <div className={`px-3 py-1 rounded-lg backdrop-blur-sm ${isDarkMode ? 'bg-red-600/90 text-white' : 'bg-red-600 text-white'}`}>
+                      <span className="text-sm font-medium">LIVE</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-2 text-center text-white">{ytModal.title}</div>
-                {/* Modal actions: Keep Watching (1), Close (2) */}
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    onClick={() => {
-                      setSelectedYtModalIndex(1);
-                      setActiveYtModalIndex(1);
-                      setTimeout(() => setActiveYtModalIndex(null), 1200);
-                    }}
-                    className={`rounded-lg border-2 px-4 py-3 font-semibold transition-colors bg-white text-gray-900 shadow ${
-                      isDarkMode ? 'border-slate-600 hover:border-slate-400' : 'border-gray-200 hover:border-gray-400'
-                    } ${selectedYtModalIndex === 1 ? 'ring-4 ring-purple-400/60' : ''} ${activeYtModalIndex === 1 ? '!ring-4 ring-green-400/60' : ''}`}
-                  >
-                    Keep Watching
-                  </button>
-                  <button
-                    onClick={closeYTModal}
-                    className={`rounded-lg border-2 px-4 py-3 font-semibold transition-colors bg-white text-gray-900 shadow ${
-                      isDarkMode ? 'border-slate-600 hover:border-slate-400' : 'border-gray-200 hover:border-gray-400'
-                    } ${selectedYtModalIndex === 2 ? 'ring-4 ring-purple-400/60' : ''} ${activeYtModalIndex === 2 ? '!ring-4 ring-green-400/60' : ''}`}
-                  >
-                    Close
-                  </button>
+
+                {/* Video Title */}
+                <div className={`px-6 py-4 ${isDarkMode ? 'bg-slate-800' : 'bg-gray-50'}`}>
+                  <h4 className={`font-semibold text-lg leading-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {formatVideoTitle(ytModal.title)}
+                  </h4>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Use neural controls to navigate
+                  </p>
+                </div>
+
+                {/* Action Buttons Card */}
+                <div className={`px-6 py-4 ${isDarkMode ? 'bg-slate-900' : 'bg-white'}`}>
+                  <div className="flex justify-center gap-3">
+                    <button
+                      onClick={() => {
+                        setSelectedYtModalIndex(1);
+                        setActiveYtModalIndex(1);
+                        setTimeout(() => setActiveYtModalIndex(null), 1200);
+                      }}
+                      className={`group relative rounded-lg border-2 px-4 py-2 font-medium transition-all duration-300 transform hover:scale-105 ${
+                        isDarkMode 
+                          ? 'border-slate-600 hover:border-slate-400 bg-slate-800 hover:bg-slate-700 text-white' 
+                          : 'border-gray-200 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-900'
+                      } ${selectedYtModalIndex === 1 ? 'ring-4 ring-purple-400/60' : ''} ${activeYtModalIndex === 1 ? 'border-green-400 bg-green-50 scale-105' : ''}`}
+                    >
+                      <div className={`flex items-center justify-center space-x-2 transition-all duration-300 ${
+                        selectedYtModalIndex === 1 ? 'text-purple-600' : ''} ${activeYtModalIndex === 1 ? 'text-green-600' : ''}`}>
+                        <Play size={16} className={activeYtModalIndex === 1 ? 'text-green-600' : 'text-green-600'} />
+                        <span className="text-sm">Keep Watching</span>
+                      </div>
+                      {(selectedYtModalIndex === 1 || activeYtModalIndex === 1) && (
+                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center animate-pulse z-10">
+                          <div className="w-3 h-3 bg-white rounded-full"></div>
+                        </div>
+                      )}
+                    </button>
+                    <button
+                      onClick={closeYTModal}
+                      className={`group relative rounded-lg border-2 px-4 py-2 font-medium transition-all duration-300 transform hover:scale-105 ${
+                        isDarkMode 
+                          ? 'border-slate-600 hover:border-slate-400 bg-slate-800 hover:bg-slate-700 text-white' 
+                          : 'border-gray-200 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-900'
+                      } ${selectedYtModalIndex === 2 ? 'ring-4 ring-purple-400/60' : ''} ${activeYtModalIndex === 2 ? 'border-green-400 bg-green-50 scale-105' : ''}`}
+                    >
+                      <div className={`flex items-center justify-center space-x-2 transition-all duration-300 ${
+                        selectedYtModalIndex === 2 ? 'text-purple-600' : ''} ${activeYtModalIndex === 2 ? 'text-green-600' : ''}`}>
+                        <X size={16} className={activeYtModalIndex === 2 ? 'text-green-600' : 'text-red-600'} />
+                        <span className="text-sm">Close Video</span>
+                      </div>
+                      {(selectedYtModalIndex === 2 || activeYtModalIndex === 2) && (
+                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center animate-pulse z-10">
+                          <div className="w-3 h-3 bg-white rounded-full"></div>
+                        </div>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
