@@ -685,6 +685,8 @@ const CommunicationInterface: React.FC = () => {
           setMenuActive(true);
           setCurrentMenuIndex(newIndex);
           setActiveSelection(null);
+          // Play select sound when highlighting a new card
+          playSound('select.mp3');
           console.log(`🏠 MAIN MENU: State updated - menuActive=true, currentMenuIndex=${newIndex}`);
         } else {
           console.log(`🏠 MAIN MENU: Invalid index ${newIndex}, range is 1-${options.length}`);

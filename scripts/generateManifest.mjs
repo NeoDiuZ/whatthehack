@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 const isGithubActor = process.env.NEXT_PUBLIC_GITHUB_ACTOR === "upsidedownlabs" || process.env.NEXT_PUBLIC_GITHUB_ACTOR === undefined;
 
 // Get the BASE_PATH dynamically
-const basePath = isGithubActor ? "" : "/m2w";
+const basePath = isGithubActor ? "" : "/NeuralAssist";
 
 
 // Define the manifest object
