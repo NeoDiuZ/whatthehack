@@ -18,8 +18,8 @@ const basePath = isGithubActor ? "" : "/m2w";
 
 // Define the manifest object
 const manifest = {
-  name: "Neural Drive Interface",
-  short_name: "Neural Drive",
+  name: "Neural Assist Interface",
+  short_name: "Neural Assist",
   start_url: `${basePath}/`,
   display: "standalone",
   background_color: "#0a0a0a",

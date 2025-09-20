@@ -7,7 +7,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Neural Drive - Assistive Communication",
+  title: "Neural Assist - Assistive Communication",
   description: "Neural-powered assistive communication interface",
 };
 

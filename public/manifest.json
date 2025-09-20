@@ -1,6 +1,6 @@
 {
-  "name": "Neural Drive Interface",
-  "short_name": "Neural Drive",
+  "name": "Neural Assist Interface",
+  "short_name": "Neural Assist",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

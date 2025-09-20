@@ -157,7 +157,7 @@ interface Translations {
 // Translation data
 const translations: Translations = {
   en: {
-    appTitle: "Neural Drive",
+    appTitle: "Neural Assist",
     connected: "Connected",
     disconnected: "Disconnected",
     connecting: "Connecting...",
@@ -191,7 +191,7 @@ const translations: Translations = {
     noLightsDeviceConnected: "No light device connected"
   },
   ms: {
-    appTitle: "Neural Drive",
+    appTitle: "Neural Assist",
     connected: "Disambung",
     disconnected: "Terputus",
     connecting: "Menyambung...",
@@ -225,7 +225,7 @@ const translations: Translations = {
     noLightsDeviceConnected: "Tiada peranti lampu disambung"
   },
   ta: {
-    appTitle: "Neural Drive",
+    appTitle: "Neural Assist",
     connected: "இணைக்கப்பட்டது",
     disconnected: "தொடர்பு துண்டிக்கப்பட்டது",
     connecting: "இணைக்கிறது...",
