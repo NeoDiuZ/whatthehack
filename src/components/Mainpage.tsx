@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Utensils, Users, Droplets, Navigation, Sun, Moon, WifiOff, HelpCircle, Brain, Plus, X, Globe, Heart, Home, Star, Car, Phone, Music, Coffee, Bed, Sun as SunIcon, Zap, Camera, Gift, Clock, MapPin, Thermometer, Mic, MessageCircle, Play, Bus, Bike, Plane, Key, Building2, Stethoscope, Users2, Briefcase, GraduationCap, Dumbbell, Pill, Frown, Smile, CloudRain, AlertTriangle, Activity, GamepadIcon, Monitor, Lightbulb, Youtube } from 'lucide-react';
+import { Utensils, Users, Droplets, Sun, Moon, WifiOff, HelpCircle, Brain, Plus, X, Globe, Heart, Home, Star, Car, Phone, Music, Coffee, Bed, Sun as SunIcon, Zap, Camera, Gift, Clock, MapPin, Thermometer, Mic, MessageCircle, Play, Bus, Bike, Plane, Key, Building2, Stethoscope, Users2, Briefcase, GraduationCap, Dumbbell, Pill, Frown, Smile, CloudRain, AlertTriangle, Activity, GamepadIcon, Monitor, Lightbulb, Youtube } from 'lucide-react';
 
 interface Option {
   id: string;
@@ -365,6 +365,7 @@ const CommunicationInterface: React.FC = () => {
   const connectedDeviceRef = useRef<BluetoothDevice | null>(null);
   const [pendingActionOptionId, setPendingActionOptionId] = useState<string | null>(null);
   const handleNotificationsRef = useRef<((event: Event) => void) | undefined>(undefined);
+  const notificationWrapperRef = useRef<((event: Event) => void) | undefined>(undefined);
   // YouTube state
   const [showYouTubeView, setShowYouTubeView] = useState(false);
   const [ytVideos, setYtVideos] = useState<Array<{ id: string; title: string; thumb: string }>>([]);
@@ -457,22 +458,6 @@ const CommunicationInterface: React.FC = () => {
       color: 'bg-red-500',
       lightColor: 'bg-red-400',
       soundFile: 'select.mp3'
-    },
-    {
-      id: 'washroom',
-      label: t.washroom,
-      icon: <Navigation size={40} strokeWidth={1.5} />,
-      color: 'bg-purple-500',
-      lightColor: 'bg-purple-400',
-      soundFile: 'washroom.mp3'
-    },
-    {
-      id: 'water',
-      label: t.water,
-      icon: <Droplets size={40} strokeWidth={1.5} />,
-      color: 'bg-cyan-500',
-      lightColor: 'bg-cyan-400',
-      soundFile: 'water.mp3'
     }
   ], [t]);
 
@@ -485,9 +470,21 @@ const CommunicationInterface: React.FC = () => {
     setOptions(prev => {
       // Update default cards with new translations, keep custom cards
       const customCards = prev.filter(option => option.id.startsWith('custom-'));
-      return [...defaultOptions, ...customCards];
+      const newOptions = [...defaultOptions, ...customCards];
+      console.log('🔄 Options updated:', newOptions.length, 'total cards');
+      return newOptions;
     });
   }, [getDefaultOptions]);
+
+  // Debug: Track options changes
+  useEffect(() => {
+    console.log('📋 Options array changed:', options.map(o => `${o.id}:${o.label}`));
+  }, [options]);
+
+  // Debug: Track menu state changes
+  useEffect(() => {
+    console.log('🎮 Menu state changed:', { menuActive, currentMenuIndex, activeSelection });
+  }, [menuActive, currentMenuIndex, activeSelection]);
 
   // Available icons for new cards
   const availableIcons = [
@@ -664,7 +661,7 @@ const CommunicationInterface: React.FC = () => {
     }
 
     // Main menu handler (only when no overlays are open)
-    console.log(`🏠 MAIN MENU: Processing packet`);
+    console.log(`🏠 MAIN MENU: Processing packet, options.length=${options.length}`);
     if (data.length === 1) {
       if (data[0] === 0) {
         console.log(`🏠 MAIN MENU: Menu start (0)`);
@@ -682,18 +679,24 @@ const CommunicationInterface: React.FC = () => {
     if (data.length === 2) {
       if (data[0] === 'S'.charCodeAt(0)) {
         const newIndex = data[1];
-        console.log(`🏠 MAIN MENU: 'S' received, index=${newIndex}`);
-        setMenuActive(true);
-        setCurrentMenuIndex(newIndex);
-        setActiveSelection(null);
+        console.log(`🏠 MAIN MENU: 'S' received, index=${newIndex}, options.length=${options.length}`);
+        if (newIndex > 0 && newIndex <= options.length) {
+          console.log(`🏠 MAIN MENU: Valid index, highlighting card: ${options[newIndex - 1]?.label || 'unknown'}`);
+          setMenuActive(true);
+          setCurrentMenuIndex(newIndex);
+          setActiveSelection(null);
+          console.log(`🏠 MAIN MENU: State updated - menuActive=true, currentMenuIndex=${newIndex}`);
+        } else {
+          console.log(`🏠 MAIN MENU: Invalid index ${newIndex}, range is 1-${options.length}`);
+        }
         return;
       }
       if (data[0] === 'A'.charCodeAt(0)) {
         const selectedIndex = data[1];
-        console.log(`🏠 MAIN MENU: 'A' received, index=${selectedIndex}`);
+        console.log(`🏠 MAIN MENU: 'A' received, index=${selectedIndex}, options.length=${options.length}`);
         if (selectedIndex > 0 && selectedIndex <= options.length) {
           const optionId = options[selectedIndex - 1].id;
-          console.log(`🏠 MAIN MENU: Activating option: ${optionId}`);
+          console.log(`🏠 MAIN MENU: Activating option: ${optionId} (${options[selectedIndex - 1]?.label})`);
           setSelectedOption(optionId);
           setActiveSelection(optionId);
           playSound(options[selectedIndex - 1].soundFile);
@@ -713,7 +716,8 @@ const CommunicationInterface: React.FC = () => {
   // Update the ref whenever the callback changes
   useEffect(() => {
     handleNotificationsRef.current = handleNotifications;
-  }, [handleNotifications]);
+    console.log('🔄 handleNotifications callback updated, options.length:', options.length);
+  }, [handleNotifications, options.length]);
 
   useEffect(() => {
     // DISABLED: All menu highlighting is now handled directly in the BLE handler
@@ -759,6 +763,7 @@ const CommunicationInterface: React.FC = () => {
           handleNotificationsRef.current(event);
         }
       };
+      notificationWrapperRef.current = notificationWrapper;
       characteristic.addEventListener('characteristicvaluechanged', notificationWrapper);
 
       setIsConnected(true);
@@ -975,7 +980,9 @@ const CommunicationInterface: React.FC = () => {
       const dataChar = await service.getCharacteristic("5f4f1107-7fc1-43b2-a540-0aa1a9f1ce78");
 
       await dataChar.stopNotifications();
-      dataChar.removeEventListener("characteristicvaluechanged", handleNotifications);
+      if (notificationWrapperRef.current) {
+        dataChar.removeEventListener("characteristicvaluechanged", notificationWrapperRef.current);
+      }
 
       server.disconnect();
     } catch (error) {
@@ -986,7 +993,7 @@ const CommunicationInterface: React.FC = () => {
       setMenuActive(false);
       setCurrentMenuIndex(0);
     }
-  }, [handleNotifications]);
+  }, []);
 
   const toggleConnection = async () => {
     if (isConnected) {
@@ -1042,7 +1049,11 @@ const CommunicationInterface: React.FC = () => {
   const addNewCard = (newCard: Omit<Option, 'id'>) => {
     const id = `custom-${Date.now()}`;
     const cardWithId: Option = { ...newCard, id };
-    setOptions(prev => [...prev, cardWithId]);
+    setOptions(prev => {
+      const newOptions = [...prev, cardWithId];
+      console.log('🆕 Added new card:', cardWithId.label, 'Total options now:', newOptions.length);
+      return newOptions;
+    });
     setShowAddCard(false);
   };
 
@@ -1250,6 +1261,7 @@ const CommunicationInterface: React.FC = () => {
           </button>
         </div>
 
+
         {/* Communication Options Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
           {options.map((option, index) => {
@@ -1258,6 +1270,11 @@ const CommunicationInterface: React.FC = () => {
             // Purple for S mode iteration, green for A mode activation
             const isIterating = isCurrentMenuOption && !activeSelection;
             const isActivated = activeSelection === option.id;
+            
+            // Debug logging for visual state
+            if (isCurrentMenuOption) {
+              console.log(`🎯 Card ${index + 1} (${option.label}): isCurrentMenuOption=${isCurrentMenuOption}, menuActive=${menuActive}, currentMenuIndex=${currentMenuIndex}, isIterating=${isIterating}`);
+            }
 
             return (
               <div
@@ -1302,6 +1319,7 @@ const CommunicationInterface: React.FC = () => {
                     isDarkMode ? 'text-white' : 'text-gray-900'
                   } ${isIterating ? 'text-purple-600' : ''} ${isActivated ? 'text-green-600' : ''}`}>
                     {option.label}
+                    {isIterating && <span className="ml-2 text-xs bg-purple-500 text-white px-2 py-1 rounded">HIGHLIGHTED</span>}
                   </h3>
 
                   {(isIterating || isActivated) && (
