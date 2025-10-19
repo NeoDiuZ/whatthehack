@@ -389,6 +389,8 @@ const CommunicationInterface: React.FC = () => {
   const [isConnectingAccessories, setIsConnectingAccessories] = useState(false);
   const [showLightsMessage, setShowLightsMessage] = useState(false);
 
+  // Stick 'Em Robot will use the existing lights connection system
+
   // Get current translations
   const t = translations[currentLanguage];
 
@@ -409,54 +411,46 @@ const CommunicationInterface: React.FC = () => {
     return formatted;
   };
 
-  // Default options - now with multilingual support
+  // Default options - robot control cards
   const getDefaultOptions = useCallback((): Option[] => [
     {
-      id: 'food',
-      label: t.food,
-      icon: <Utensils size={40} strokeWidth={1.5} />,
-      color: 'bg-orange-500',
-      lightColor: 'bg-orange-400',
-      soundFile: 'food.mp3'
-    },
-    {
-      id: 'help',
-      label: t.help,
-      icon: <HelpCircle size={40} strokeWidth={1.5} />,
-      color: 'bg-red-500',
-      lightColor: 'bg-red-400',
-      soundFile: 'help.mp3'
-    },
-    {
-      id: 'outing',
-      label: t.outing,
-      icon: <Users size={40} strokeWidth={1.5} />,
-      color: 'bg-blue-500',
-      lightColor: 'bg-blue-400',
-      soundFile: 'outing.mp3'
-    },
-    {
-      id: 'television',
-      label: t.television,
-      icon: <Monitor size={40} strokeWidth={1.5} />,
-      color: 'bg-indigo-500',
-      lightColor: 'bg-indigo-400',
-      soundFile: 'television.mp3'
-    },
-    {
-      id: 'lights',
-      label: t.lights,
-      icon: <Lightbulb size={40} strokeWidth={1.5} />,
-      color: 'bg-yellow-500',
-      lightColor: 'bg-yellow-400',
+      id: 'forward',
+      label: 'Forward',
+      icon: <Car size={40} strokeWidth={1.5} />,
+      color: 'bg-green-500',
+      lightColor: 'bg-green-400',
       soundFile: 'select.mp3'
     },
     {
-      id: 'youtube',
-      label: t.youtube,
-      icon: <Youtube size={40} strokeWidth={1.5} />,
+      id: 'stop',
+      label: 'Stop',
+      icon: <Zap size={40} strokeWidth={1.5} />,
       color: 'bg-red-500',
       lightColor: 'bg-red-400',
+      soundFile: 'select.mp3'
+    },
+    {
+      id: 'backward',
+      label: 'Backward',
+      icon: <Car size={40} strokeWidth={1.5} style={{ transform: 'rotate(180deg)' }} />,
+      color: 'bg-orange-500',
+      lightColor: 'bg-orange-400',
+      soundFile: 'select.mp3'
+    },
+    {
+      id: 'forwardLeft',
+      label: 'Forward Left',
+      icon: <Car size={40} strokeWidth={1.5} style={{ transform: 'rotate(-45deg)' }} />,
+      color: 'bg-blue-500',
+      lightColor: 'bg-blue-400',
+      soundFile: 'select.mp3'
+    },
+    {
+      id: 'forwardRight',
+      label: 'Forward Right',
+      icon: <Car size={40} strokeWidth={1.5} style={{ transform: 'rotate(45deg)' }} />,
+      color: 'bg-purple-500',
+      lightColor: 'bg-purple-400',
       soundFile: 'select.mp3'
     }
   ], [t]);
@@ -850,6 +844,29 @@ const CommunicationInterface: React.FC = () => {
     }
   }, [connectToLightsDevice]);
 
+  // Send command to Stick 'Em robot with filtering using existing lights connection
+  const sendStickEmCommand = useCallback(async (command: string) => {
+    const ch = lightsCharacteristicRef.current;
+    if (!ch || typeof ch.writeValue !== 'function') {
+      console.log('Stick Em robot not connected (via accessories)');
+      return false;
+    }
+    
+    try {
+      // Add the filtering character (U+2800) at the beginning to ensure only Stick 'Em PCBs respond
+      const filteredCommand = '\u2800' + command;
+      const encoder = new TextEncoder();
+      const data = encoder.encode(filteredCommand);
+      
+      await ch.writeValue(data);
+      console.log('Sent to Stick Em robot:', filteredCommand);
+      return true;
+    } catch (e) {
+      console.error('Stick Em command send failed:', e);
+      return false;
+    }
+  }, []);
+
   const toggleLights = useCallback(async () => {
     if (!isLightsConnected) {
       // Show message instead of trying to connect
@@ -1006,18 +1023,41 @@ const CommunicationInterface: React.FC = () => {
   };
 
   const handleOptionClick = (option: Option) => {
-    if (!isConnected && option.id !== 'lights') {
+    if (!isConnected) {
       alert(t.pleaseConnect);
+      return;
+    }
+    
+    // For robot commands, also check if accessories (robot) is connected
+    if (['forward', 'stop', 'backward', 'forwardLeft', 'forwardRight'].includes(option.id) && !isLightsConnected) {
+      alert('Please connect to robot first!');
       return;
     }
 
     setSelectedOption(selectedOption === option.id ? null : option.id);
     playSound(option.soundFile);
-    if (option.id === 'lights') {
-      // Fire and forget; internal state will update when write completes
-      toggleLights();
-    } else if (option.id === 'youtube') {
-      openYouTubeView();
+    
+    // Handle robot control commands
+    if (option.id === 'forward') {
+      // Send forward command: 'mv:2000:1000:2000:1000:-:-:-:-:-,'
+      console.log('Sending Forward command');
+      sendStickEmCommand('mv:2000:1000:2000:1000:-:-:-:-:-,');
+    } else if (option.id === 'stop') {
+      // Send stop command: 'stopAll,'
+      console.log('Sending Stop command');
+      sendStickEmCommand('stopAll,');
+    } else if (option.id === 'backward') {
+      // Send backward command: 'mv:1000:2000:1000:2000:-:-:-:-:-,'
+      console.log('Sending Backward command');
+      sendStickEmCommand('mv:1000:2000:1000:2000:-:-:-:-:-,');
+    } else if (option.id === 'forwardLeft') {
+      // Send forward left command: 'mv:1500:1000:1500:1000:-:-:-:-:-,'
+      console.log('Sending Forward Left command');
+      sendStickEmCommand('mv:1500:1000:1500:1000:-:-:-:-:-,');
+    } else if (option.id === 'forwardRight') {
+      // Send forward right command: 'mv:2000:1500:2000:1500:-:-:-:-:-,'
+      console.log('Sending Forward Right command');
+      sendStickEmCommand('mv:2000:1500:2000:1500:-:-:-:-:-,');
     }
   };
 
@@ -1029,13 +1069,32 @@ const CommunicationInterface: React.FC = () => {
       setPendingActionOptionId(null);
       return;
     }
-    if (pendingActionOptionId === 'lights') {
-      toggleLights();
-    } else if (pendingActionOptionId === 'youtube') {
-      openYouTubeView();
+    
+    // Handle robot control commands
+    if (pendingActionOptionId === 'forward') {
+      // Send forward command: 'mv:2000:1000:2000:1000:-:-:-:-:-,'
+      console.log('Neural activation: Sending Forward command');
+      sendStickEmCommand('mv:2000:1000:2000:1000:-:-:-:-:-,');
+    } else if (pendingActionOptionId === 'stop') {
+      // Send stop command: 'stopAll,'
+      console.log('Neural activation: Sending Stop command');
+      sendStickEmCommand('stopAll,');
+    } else if (pendingActionOptionId === 'backward') {
+      // Send backward command: 'mv:1000:2000:1000:2000:-:-:-:-:-,'
+      console.log('Neural activation: Sending Backward command');
+      sendStickEmCommand('mv:1000:2000:1000:2000:-:-:-:-:-,');
+    } else if (pendingActionOptionId === 'forwardLeft') {
+      // Send forward left command: 'mv:1500:1000:1500:1000:-:-:-:-:-,'
+      console.log('Neural activation: Sending Forward Left command');
+      sendStickEmCommand('mv:1500:1000:1500:1000:-:-:-:-:-,');
+    } else if (pendingActionOptionId === 'forwardRight') {
+      // Send forward right command: 'mv:2000:1500:2000:1500:-:-:-:-:-,'
+      console.log('Neural activation: Sending Forward Right command');
+      sendStickEmCommand('mv:2000:1500:2000:1500:-:-:-:-:-,');
     }
+    
     setPendingActionOptionId(null);
-  }, [pendingActionOptionId, toggleLights, openYouTubeView, ytModal.open, showYouTubeView]);
+  }, [pendingActionOptionId, ytModal.open, showYouTubeView, sendStickEmCommand]);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
@@ -1187,12 +1246,12 @@ const CommunicationInterface: React.FC = () => {
                   {isConnectingAccessories ? (
                     <span className="flex items-center">
                       <span className="animate-spin mr-2">↻</span>
-                      {t.connectingAccessories}
+                      Connecting Robot...
                     </span>
                   ) : isLightsConnected ? (
-                    t.accessoriesConnected
+                    'Robot Connected'
                   ) : (
-                    t.connectAccessories
+                    'Connect Robot'
                   )}
                 </button>
               </div>
@@ -1265,7 +1324,7 @@ const CommunicationInterface: React.FC = () => {
 
 
         {/* Communication Options Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {options.map((option, index) => {
             const isCurrentMenuOption = menuActive && !showYouTubeView && !ytModal.open && currentMenuIndex === index + 1;
             const isCustomCard = option.id.startsWith('custom-');
@@ -1287,7 +1346,7 @@ const CommunicationInterface: React.FC = () => {
                   hover:scale-105 hover:shadow-lg rounded-xl p-6 border-2
                   ${isIterating ? 'ring-4 ring-purple-400/50' : ''}
                   ${isActivated ? 'border-green-400 bg-green-50 scale-105' : ''}
-                  ${!isConnected && option.id !== 'lights' && option.id !== 'youtube' ? 'opacity-50 cursor-not-allowed' : ''}
+                  ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
               >
                 {/* Remove button for custom cards */}
